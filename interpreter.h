@@ -25,7 +25,7 @@ class Interpreter {
 
     class EvalFuncStack {
         private:
-        static const int STACK_SIZE = 101;
+        static const int STACK_SIZE = 1000;
 
         hash_table_struct stack_array[STACK_SIZE];
         int top_ptr = -1;
@@ -69,7 +69,6 @@ class Interpreter {
     };
 
     void get_output(const int index, const bool is_start, std::string& output) const {
-        // std::cout << "index: " << index << ", is_start: " << is_start << ", root_ptr: " << root_ptr << "\n";
         if (index == 0) {
             output += "() ";
         } else if (index < 0) {
@@ -79,7 +78,6 @@ class Interpreter {
                 output += "(";
             }
 
-            // std::cout << "node_array.at_head(index): " << node_array.at_head(index) << "\n";
             get_output(node_array.at_head(index), true, output);
 
             if (node_array.at_tail(index) != 0) {
@@ -271,7 +269,7 @@ class Interpreter {
         bool first = true;
 
         std::string token_value = get_next_token();
-        // std::cout << "token_value: " << token_value << "\n";
+
         if (token_value == "_END_OF_LINE") {
             return root_ptr;
         } else if (token_value == "(") {
@@ -282,9 +280,6 @@ class Interpreter {
 
                     first = false;
                 } else {
-                    // std::cout << "temp_ptr: " << temp_ptr
-                    // << ", node_array.get_size_parse_tree(): " << node_array.get_size_parse_tree()
-                    // << ", node_array.get_size_free_list(): " << node_array.get_size_free_list() << "\n";
                     node_array.set_tail(temp_ptr, node_array.alloc());
                     temp_ptr = node_array[temp_ptr].tail;
                 }
@@ -324,9 +319,6 @@ class Interpreter {
     int eval(const int root) {
         // print();
 
-        if (hash_table.get_pointer(-13) == -13)
-        throw "sdfsd";
-
         if (root == 0) {
             return 0;
         }
@@ -347,39 +339,46 @@ class Interpreter {
             }
 
             return hash_table.get_hash_value(std::to_string(result));
+
         } else if (token_index == "=") {
             if (get_lchild(get_rchild(root)) == get_lchild(get_rchild(get_rchild(root)))) {
                 return hash_table.get_hash_value("#t");
             } else {
                 return hash_table.get_hash_value("#f");
             }
+
         } else if (token_index == "isnumber") {
             if (is_number(hash_table.get_value(eval(get_lchild(get_rchild(root)))))) {
                 return hash_table.get_hash_value("#t");
             } else {
                 return hash_table.get_hash_value("#f");
             }
+
         } else if (token_index == "issymbol") {
             if (!is_number(hash_table.get_value(eval(get_lchild(get_rchild(root)))))) {
                 return hash_table.get_hash_value("#t");
             } else {
                 return hash_table.get_hash_value("#f");
             }
+
         } else if (token_index == "null?") {
             if (get_rchild(root) == 0 || eval(get_lchild(get_rchild(root))) == 0) {
                 return hash_table.get_hash_value("#t");
             } else {
                 return hash_table.get_hash_value("#f");
             }
+
         } else if (token_index == "cons") {
             int temp_ptr = node_array.alloc();
             node_array.set_head(temp_ptr, eval(get_lchild(get_rchild(root))));
             node_array.set_tail(temp_ptr, eval(get_lchild(get_rchild(get_rchild(root)))));
             return temp_ptr;
+
         } else if (token_index == "cond") {
             int temp_root = root;
             while (get_rchild(get_rchild(temp_root)) != 0) {
                 temp_root = get_rchild(temp_root);
+
                 if (hash_table.get_value(eval(get_lchild(get_lchild(temp_root)))) == "#t") {
                     return eval(get_lchild(get_rchild(get_lchild(temp_root))));
                 }
@@ -390,10 +389,13 @@ class Interpreter {
             }
 
             return eval(get_lchild(get_rchild(get_lchild(get_rchild(temp_root)))));
+
         } else if (token_index == "car") {
             return get_lchild(eval(get_lchild(get_rchild(root))));
+
         } else if (token_index == "cdr") {
             return get_rchild(eval(get_lchild(get_rchild(root))));
+
         } else if (token_index == "define") {
             if (hash_table.get_value(get_lchild(get_lchild(get_rchild(get_rchild(root))))) == "lambda") {
                 // function define
@@ -411,11 +413,31 @@ class Interpreter {
             }
 
             return root;
+
         } else if (token_index == "quote") {
             return get_lchild(get_rchild(root));
+
+        } else if (token_index == "<") {
+            if (!is_number(hash_table.get_value(eval(get_lchild(get_rchild(root)))))) {
+                throw std::logic_error(
+                    "'" + hash_table.get_value(eval(get_lchild(get_rchild(root)))) + "' is not a number!");
+            }
+            if (!is_number(hash_table.get_value(eval(get_lchild(get_rchild(get_rchild(root))))))) {
+                throw std::logic_error(
+                    "'" + hash_table.get_value(eval(get_lchild(get_rchild(get_rchild(root))))) + "' is not a number!");
+            }
+
+            if (get_val(hash_table.get_value(eval(get_lchild(get_rchild(root))))) <
+                get_val(hash_table.get_value(eval(get_lchild(get_rchild(get_rchild(root))))))) {
+                return hash_table.get_hash_value("#t");
+            } else {
+                return hash_table.get_hash_value("#f");
+            }
+
         } else if (hash_table.get_pointer(hash_table.get_hash_value(token_index)) != 0) {
             // user defined function / value
-            EvalFuncStack eval_func_stack;
+            EvalFuncStack eval_func_stack; // 함수 호출 전의 hash table 조각의 값을 저장
+            EvalFuncStack temp_arg_stack; // 인자(argument)로 넣을 값을 임시로 저장(모든 인자 계산이 끝나기 전까지 hash table을 건드리면 안 됨)
 
             const int func_ptr = hash_table.get_pointer(get_lchild(root));
             int param = get_lchild(get_rchild(func_ptr));
@@ -424,22 +446,30 @@ class Interpreter {
             // iterate all params
             while (param != 0 && argument != 0) {
                 eval_func_stack.push(hash_table.get_hash_struct(get_lchild(param)));
-                hash_table.set_pointer(get_lchild(param), eval(get_lchild(argument)));
+                temp_arg_stack.push(hash_table.get_value(get_lchild(param)), eval(get_lchild(argument)));
                 
                 param = get_rchild(param);
                 argument = get_rchild(argument);
             }
 
+            // 인자 계산이 끝난 후 함수 호출에 필요한 포인터 값 삽입
+            while (temp_arg_stack.size() >= 1) {
+                hash_table.set_pointer(hash_table.get_hash_value(temp_arg_stack.top().symbol), temp_arg_stack.top().link_of_value);
+                temp_arg_stack.pop();
+            }
+
             const int result = eval(get_lchild(get_rchild(get_rchild(hash_table.get_pointer(get_lchild(root))))));
 
+            // 함수 호출 전의 포인터 값으로 복원
             while (eval_func_stack.size() >= 1) {
                 hash_table.set_pointer(hash_table.get_hash_value(eval_func_stack.top().symbol), eval_func_stack.top().link_of_value);
                 eval_func_stack.pop();
             }
 
             return result;
+
         } else {
-            return get_lchild(root);
+            throw std::logic_error("'" + token_index + "' doesn't exist!");
         }
     }
 

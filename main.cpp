@@ -5,21 +5,22 @@
 
 int main(void) {
     Interpreter interpreter;
-    std::string input;
+    std::string input = "";
 
     interpreter.init();
 
     do {
         std::cout << "> ";
         do {
+            input = "";
             std::getline(std::cin, input);
             if (std::cin.eof()) {
                 std::cout << "\n";
                 return 0;
-            } else if (input == "") {
-                continue;
+            } else if (input[0] == ';') { // comment
+                input = "";
             }
-        } while (!interpreter.read(input));
+        } while (input == "" || !interpreter.read(input));
 
         interpreter.print();
 
