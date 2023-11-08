@@ -22,10 +22,10 @@ int main(void) {
             }
         } while (input == "" || !interpreter.read(input));
 
-        interpreter.print();
+        // interpreter.print();
 
         interpreter.eval();
-        interpreter.print();
+        // interpreter.print();
         std::cout << "\n";
     } while (true);
 

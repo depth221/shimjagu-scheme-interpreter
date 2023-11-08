@@ -25,19 +25,19 @@ class Interpreter {
 
     class EvalFuncStack {
         private:
-        static const int STACK_SIZE = 1000;
+        static const int MAX_PARAMS = 5;
 
-        hash_table_struct stack_array[STACK_SIZE];
+        hash_table_struct stack_array[MAX_PARAMS];
         int top_ptr = -1;
 
         public:
         void push(const hash_table_struct& element) {
             try {
-                if (top_ptr >= STACK_SIZE - 1) {
+                if (top_ptr >= MAX_PARAMS - 1) {
                     throw std::range_error("The stack is full!");
                 }
             } catch (std::range_error& e) {
-                std::cerr << e.what() << "STACK_SIZE(" << STACK_SIZE << ")\n";
+                std::cerr << e.what() << "MAX_PARAMS(" << MAX_PARAMS << ")\n";
                 exit(-1);
             }
             
@@ -330,8 +330,19 @@ class Interpreter {
         std::string token_index = hash_table.get_value(get_lchild(root));
 
         if (token_index == "+") {
-            double result = get_val(hash_table.get_value(eval(get_lchild(get_rchild(root))))) +
-                            get_val(hash_table.get_value(eval(get_lchild(get_rchild(get_rchild(root))))));
+            double result = 0;
+
+            if (get_lchild(get_rchild(root)) < 0) { // symbol
+                result += get_val(hash_table.get_value(get_lchild(get_rchild(root))));
+            } else { // node
+                result += get_val(hash_table.get_value(eval(get_lchild(get_rchild(root)))));
+            }
+
+            if (get_lchild(get_rchild(get_rchild(root))) < 0) { // symbol
+                result += get_val(hash_table.get_value(get_lchild(get_rchild(get_rchild(root)))));
+            } else { // node
+                result += get_val(hash_table.get_value(eval(get_lchild(get_rchild(get_rchild(root))))));
+            }
 
             // 부동소수점 오차 제거
             if (result - static_cast<int>(result) < 1e-6 && result - static_cast<int>(result) > -1e-6) {
