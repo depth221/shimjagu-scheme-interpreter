@@ -244,7 +244,7 @@ class Interpreter {
 
     bool is_number(const std::string& num_str) {
         if (num_str.size() == 0) return false;
-        
+
         char* end_str;
         double result = std::strtod(num_str.c_str(), &end_str);
         return (strlen(end_str) < 1);
@@ -417,7 +417,7 @@ class Interpreter {
             
         } else if (token_index == "symbol?") {
             if ((get_lchild(get_rchild(root)) < 0 && hash_table.get_pointer(get_lchild(get_rchild(root))) != 0) ||
-                 get_lchild(get_rchild(root)) > 0 && eval(get_lchild(get_rchild(root))) != 0) {
+                (get_lchild(get_rchild(root)) > 0 && eval(get_lchild(get_rchild(root))) != 0)) {
                 return hash_table.get_hash_value("#t");
             } else {
                 return hash_table.get_hash_value("#f");
