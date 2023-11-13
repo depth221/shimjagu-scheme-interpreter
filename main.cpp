@@ -4,6 +4,8 @@
 #include "interpreter.h"
 
 int main(void) {
+    std::cout.precision(HashTable::MAX_SYMBOL_SIZE);
+    
     Interpreter interpreter;
     std::string input = "";
 

@@ -2,13 +2,14 @@
 #define INTERPRETER_H
 
 #include <cstring>
+#include <cmath>
 #include <string>
 #include <stdexcept>
 
 #include "node_array.h"
 #include "hash_table.h"
 
-int max(const int a, const int b) {
+inline int max(const int a, const int b) {
     return (a < b) ? b : a;
 }
 
@@ -152,6 +153,17 @@ class Interpreter {
     }
 
     std::string get_next_token() {
+        std::string tmp_str = get_next_token_non_dec();
+
+        if (is_number(tmp_str)) {
+            // 부동소수점 오차 제거
+            return trunc_decimal(tmp_str);
+        }
+
+        return tmp_str;
+    }
+
+    std::string get_next_token_non_dec() {
         if (input_str_read_ptr >= input_str.size()) {
             return "_END_OF_LINE";
         }
@@ -206,6 +218,30 @@ class Interpreter {
         input_str_read_ptr = 0;
     }
 
+    const std::string trunc_decimal(const std::string& num_str) {
+        int iter_to = num_str.size();
+        bool decimal_point = false, no_more_del = false;
+        for (auto iter = num_str.rbegin(); iter != num_str.rend(); iter++) {
+            if (*iter == '.') {
+                decimal_point = true;
+                if (no_more_del == false) {
+                    iter_to = static_cast<int>(num_str.rend() - iter) - 1;
+                }
+                break;
+
+            } else if (no_more_del == false && *iter != '0') {
+                no_more_del = true;
+                iter_to = static_cast<int>(num_str.rend() - iter);
+            }
+        }
+
+        if (decimal_point == true) {
+            return num_str.substr(0, iter_to);
+        }
+
+        return num_str;
+    }
+
     bool is_number(const std::string& num_str) {
         char* end_str;
         double result = std::strtod(num_str.c_str(), &end_str);
@@ -217,8 +253,7 @@ class Interpreter {
     double get_val(const std::string& num_str) {
         char* end_str;
         double result = std::strtod(num_str.c_str(), &end_str);
-        if (strlen(end_str) > 1) {
-            std::cerr << end_str;
+        if (strlen(end_str) > 0) {
             std::cerr << "Warn: '" << num_str << "' is not pure number. Using '" << result << "'.\n";
         }
 
@@ -239,27 +274,29 @@ class Interpreter {
     bool read(const std::string& input) {
         // 괄호 개수 확인 -> 명령어가 전부 입력되었는지 확인
         for (const char i : input) {
+            input_str += i;
             if (i == '(') {
                 read_number_of_left_paren++;
             } else if (i == ')') {
                 read_number_of_left_paren--;
             }
-        }
 
-        input_str += input;
+            // 완전한 형태의 명령이 들어올 따마다 read 및 preprocessing
+            if (read_number_of_left_paren == 0) {
+                reset_tokenizer();
+                parse_tree_root_ptr = node_array.get_free_list_root();
+                input_str = preprocessing();
+                const int result = read();
+
+                input_str = "";
+            }
+        }
 
         // 명령어가 전부 입력되지 않음
         if (read_number_of_left_paren != 0) {
             return false;
         }
 
-        read_number_of_left_paren = 0;
-        reset_tokenizer();
-        parse_tree_root_ptr = node_array.get_free_list_root();
-        input_str = preprocessing();
-
-        const int result = read();
-        input_str = "";
         return true;
     }
 
@@ -323,36 +360,49 @@ class Interpreter {
             return 0;
         }
 
-        if (root < 0) {
-            return hash_table.get_pointer(root);
+        if (root < 0) { // symbol
+            if (is_number(hash_table.get_value(root))) { // symbol is a number
+                return root;
+            } else { // symbol is not a number
+                return hash_table.get_pointer(root);
+            }
         }
 
         std::string token_index = hash_table.get_value(get_lchild(root));
 
-        if (token_index == "+") {
-            double result = 0;
+        if (token_index == "+" || token_index == "-" || token_index == "*" || token_index == "/" || token_index == "%") {
+            double result = 0.0;
+            switch (token_index[0]) {
+            case '+':
+                result = get_val(hash_table.get_value(eval(get_lchild(get_rchild(root))))) +
+                         get_val(hash_table.get_value(eval(get_lchild(get_rchild(get_rchild(root))))));
+                break;
 
-            if (get_lchild(get_rchild(root)) < 0) { // symbol
-                result += get_val(hash_table.get_value(get_lchild(get_rchild(root))));
-            } else { // node
-                result += get_val(hash_table.get_value(eval(get_lchild(get_rchild(root)))));
+            case '-':
+                result = get_val(hash_table.get_value(eval(get_lchild(get_rchild(root))))) -
+                         get_val(hash_table.get_value(eval(get_lchild(get_rchild(get_rchild(root))))));
+                break;
+            
+            case '*':
+                result = get_val(hash_table.get_value(eval(get_lchild(get_rchild(root))))) *
+                         get_val(hash_table.get_value(eval(get_lchild(get_rchild(get_rchild(root))))));
+                break;
+            
+            case '/':
+                result = get_val(hash_table.get_value(eval(get_lchild(get_rchild(root))))) /
+                         get_val(hash_table.get_value(eval(get_lchild(get_rchild(get_rchild(root))))));
+                break;
             }
 
-            if (get_lchild(get_rchild(get_rchild(root))) < 0) { // symbol
-                result += get_val(hash_table.get_value(get_lchild(get_rchild(get_rchild(root)))));
-            } else { // node
-                result += get_val(hash_table.get_value(eval(get_lchild(get_rchild(get_rchild(root))))));
-            }
+            std::string result_str = std::to_string(result);
 
             // 부동소수점 오차 제거
-            if (result - static_cast<int>(result) < 1e-6 && result - static_cast<int>(result) > -1e-6) {
-                return hash_table.get_hash_value(std::to_string(static_cast<int>(result)));
-            }
-
-            return hash_table.get_hash_value(std::to_string(result));
+            result_str = trunc_decimal(result_str);
+            
+            return hash_table.get_hash_value(result_str);
 
         } else if (token_index == "=") {
-            if (get_lchild(get_rchild(root)) == get_lchild(get_rchild(get_rchild(root)))) {
+            if (eval(get_lchild(get_rchild(root))) == eval(get_lchild(get_rchild(get_rchild(root))))) {
                 return hash_table.get_hash_value("#t");
             } else {
                 return hash_table.get_hash_value("#f");
@@ -428,7 +478,7 @@ class Interpreter {
         } else if (token_index == "quote") {
             return get_lchild(get_rchild(root));
 
-        } else if (token_index == "<") {
+        } else if (token_index == "<" || token_index == ">") {
             if (!is_number(hash_table.get_value(eval(get_lchild(get_rchild(root)))))) {
                 throw std::logic_error(
                     "'" + hash_table.get_value(eval(get_lchild(get_rchild(root)))) + "' is not a number!");
@@ -438,12 +488,23 @@ class Interpreter {
                     "'" + hash_table.get_value(eval(get_lchild(get_rchild(get_rchild(root))))) + "' is not a number!");
             }
 
-            if (get_val(hash_table.get_value(eval(get_lchild(get_rchild(root))))) <
-                get_val(hash_table.get_value(eval(get_lchild(get_rchild(get_rchild(root))))))) {
-                return hash_table.get_hash_value("#t");
-            } else {
-                return hash_table.get_hash_value("#f");
+            bool is_true = false;
+
+            switch (token_index[0]) {
+                case '<':
+                    is_true = (get_val(hash_table.get_value(eval(get_lchild(get_rchild(root))))) <
+                               get_val(hash_table.get_value(eval(get_lchild(get_rchild(get_rchild(root)))))));
+                    break;
+                case '>':
+                    is_true = (get_val(hash_table.get_value(eval(get_lchild(get_rchild(root))))) >
+                               get_val(hash_table.get_value(eval(get_lchild(get_rchild(get_rchild(root)))))));
             }
+
+            return is_true ? hash_table.get_hash_value("#t") : hash_table.get_hash_value("#f");
+            
+        } else if (token_index == "print" || token_index == "display") {
+            // 출력
+            return eval(get_lchild(get_rchild(root)));
 
         } else if (hash_table.get_pointer(hash_table.get_hash_value(token_index)) != 0) {
             // user defined function / value

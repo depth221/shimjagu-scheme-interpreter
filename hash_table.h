@@ -11,9 +11,11 @@ struct hash_table_struct {
 };
 
 class HashTable {
-    private:
-    static const int HASH_TABLE_SIZE = 101;
+    public:
+    static const int HASH_TABLE_SIZE = 2000;
     static const int MAX_SYMBOL_SIZE = 10;
+
+    private:
     hash_table_struct hash_table[HASH_TABLE_SIZE];
 
     int max_nonzero_index = 0;
