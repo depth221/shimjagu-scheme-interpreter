@@ -25,7 +25,7 @@ class NodeArray {
         }
     };
 
-    static const int NODE_ARRAY_SIZE = 2000;
+    static const int NODE_ARRAY_SIZE = 101;
     node_array_struct node_array[NODE_ARRAY_SIZE];
     int parse_tree_root = 0;
     int free_list_root = 1;

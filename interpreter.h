@@ -243,6 +243,8 @@ class Interpreter {
     }
 
     bool is_number(const std::string& num_str) {
+        if (num_str.size() == 0) return false;
+        
         char* end_str;
         double result = std::strtod(num_str.c_str(), &end_str);
         return (strlen(end_str) < 1);
@@ -397,9 +399,7 @@ class Interpreter {
             std::string result_str = std::to_string(result);
 
             // 부동소수점 오차 제거
-            result_str = trunc_decimal(result_str);
-            
-            return hash_table.get_hash_value(result_str);
+            return hash_table.get_hash_value(trunc_decimal(result_str));
 
         } else if (token_index == "=") {
             if (eval(get_lchild(get_rchild(root))) == eval(get_lchild(get_rchild(get_rchild(root))))) {
@@ -408,15 +408,16 @@ class Interpreter {
                 return hash_table.get_hash_value("#f");
             }
 
-        } else if (token_index == "isnumber") {
+        } else if (token_index == "number?") {
             if (is_number(hash_table.get_value(eval(get_lchild(get_rchild(root)))))) {
                 return hash_table.get_hash_value("#t");
             } else {
                 return hash_table.get_hash_value("#f");
             }
-
-        } else if (token_index == "issymbol") {
-            if (!is_number(hash_table.get_value(eval(get_lchild(get_rchild(root)))))) {
+            
+        } else if (token_index == "symbol?") {
+            if ((get_lchild(get_rchild(root)) < 0 && hash_table.get_pointer(get_lchild(get_rchild(root))) != 0) ||
+                 get_lchild(get_rchild(root)) > 0 && eval(get_lchild(get_rchild(root))) != 0) {
                 return hash_table.get_hash_value("#t");
             } else {
                 return hash_table.get_hash_value("#f");

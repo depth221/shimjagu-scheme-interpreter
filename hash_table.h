@@ -12,7 +12,7 @@ struct hash_table_struct {
 
 class HashTable {
     public:
-    static const int HASH_TABLE_SIZE = 2000;
+    static const int HASH_TABLE_SIZE = 101;
     static const int MAX_SYMBOL_SIZE = 10;
 
     private:
