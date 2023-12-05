@@ -36,7 +36,7 @@ class HashTable {
             answer += (static_cast<int>(str.at(i + 1))) << 8;
         }
 
-        return answer % HASH_TABLE_SIZE;
+        return answer % (HASH_TABLE_SIZE - 1) + 1;
     }
 
     public:

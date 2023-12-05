@@ -13,37 +13,40 @@ struct node_array_struct {
 };
 
 class NodeArray {
-    private:
-    class LinkedList {
-        private:
-        int head = 0;
-        int tail = 0;
-        
-        public:
-        void push_back(const node_array_struct& item) {
-            
-        }
-    };
+    public:
+    static const int NODE_ARRAY_SIZE = 31;
 
-    static const int NODE_ARRAY_SIZE = 101;
+    private:
     node_array_struct node_array[NODE_ARRAY_SIZE];
     int parse_tree_root = 0;
     int free_list_root = 1;
     int size_parse_tree = 0;
-    int size_free_list = NODE_ARRAY_SIZE;
+    int size_free_list = NODE_ARRAY_SIZE - 1;
 
     int max_head_length = 0;
     int max_tail_length = 0;
 
     public:
+    NodeArray() {
+        // 값 초기화
+        node_array[0].head = 0;
+        node_array[0].tail = 0;
+        for (int i = 1; i < NODE_ARRAY_SIZE; i++) {
+            node_array[i].head = 0;
+            node_array[i].tail = i + 1;
+        }
+    }
+
     int alloc() {
         parse_tree_root = free_list_root;
-        free_list_root++;
+        free_list_root = get_rchild(free_list_root);
+
+        node_array[parse_tree_root].tail = 0;
 
         size_parse_tree++;
         size_free_list--;
 
-        if (size_free_list <= 0) {
+        if (size_free_list < 0) {
             throw std::length_error("Size of the node array is too small: " + std::to_string(NODE_ARRAY_SIZE));
         }
 
@@ -132,13 +135,76 @@ class NodeArray {
     }
 
     void free() {
+        // 값 초기화
+        node_array[0].head = 0;
+        node_array[0].tail = 0;
+        for (int i = 1; i < NODE_ARRAY_SIZE; i++) {
+            node_array[i].head = 0;
+            node_array[i].tail = i + 1;
+        }
+
         parse_tree_root = 0;
         free_list_root = 1;
         size_parse_tree = 0;
-        size_free_list = NODE_ARRAY_SIZE;
+        size_free_list = NODE_ARRAY_SIZE - 1;
 
         max_head_length = 0;
         max_tail_length = 0;
+    }
+
+    void garbage_collection(const int roots[], const int roots_size) {
+        size_parse_tree = 0;
+        size_free_list = NODE_ARRAY_SIZE - 1;
+
+        bool is_preserved[NODE_ARRAY_SIZE] = {false, };
+
+        for (int i = 0; i < roots_size; i++) {
+            check_gc_ptr(is_preserved, roots[i]);
+        }
+
+        // GC 가능한 node 중 가장 앞의 node를 free list의 root로 함
+        free_list_root = -1;
+        for (int i = 1; i < NODE_ARRAY_SIZE; i++) {
+            if (is_preserved[i]) continue;
+
+            free_list_root = i;
+            node_array[free_list_root].head = 0;
+            size_free_list = 1;
+            break;
+        }
+        if (free_list_root == -1) { // GC 불가능
+            throw std::length_error("Size of the node array is too small: " + std::to_string(NODE_ARRAY_SIZE));
+        }
+
+        int last_node_index = free_list_root, this_node_index = free_list_root;
+        for (int i = free_list_root + 1; i < NODE_ARRAY_SIZE; i++) {
+            if (is_preserved[i]) continue;
+            
+            last_node_index = this_node_index;
+            this_node_index = i;
+            size_free_list++;
+
+            node_array[this_node_index].head = 0;
+            node_array[last_node_index].tail = this_node_index;
+        }
+        node_array[this_node_index].tail = NODE_ARRAY_SIZE;
+
+        size_parse_tree = NODE_ARRAY_SIZE - size_free_list;
+    }
+
+    void check_gc_ptr(bool is_preserved[], const int index) const {
+        if (is_preserved[index]) return;
+        if (index >= NODE_ARRAY_SIZE) return;
+
+        if (node_array[index].head > 0) {
+            check_gc_ptr(is_preserved, node_array[index].head);
+        }
+
+        if (node_array[index].tail > 0) {
+            check_gc_ptr(is_preserved, node_array[index].tail);
+        }
+
+        is_preserved[index] = true;
     }
 };
 
